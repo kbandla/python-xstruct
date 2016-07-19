@@ -1,0 +1,207 @@
+<!doctype html public "-//W3C//DTD HTML 3.2//EN">
+<html>
+   <head>
+      <meta name="description"    content="Python Extension Modules at Siteseeing Internet Services">
+      <meta name="keywords"       content="Python Extension Modules at Siteseeing Internet Services">
+      <meta name="resource-type"  content="document">
+      <meta name="distribution"   content="global">
+      <link rev=made href="mailto:">
+	<title>
+         The Python xstruct module
+      </title>
+   </head>
+   
+<body text="#000000" bgcolor="#66CCCC" link="#000099" vlink="#006699">
+
+<h1>The Python xstruct module</h1>
+
+<h2>Introduction</h2>
+
+The <tt>xstruct</tt> module is an extension of the standard 
+Python <tt>struct</tt> module that provides a more convenient way of 
+creating and manipulating packed binary data structures. 
+Besides offering the <tt>pack</tt>, <tt>unpack</tt> and <tt>calcsize</tt>
+functions inherited from the <tt>struct</tt> module, the <tt>xstruct</tt> 
+module offers a new <tt>structdef</tt> function that you can use to 
+<I>define</I> packed binary data structures. 
+From these structure definitions, you can create the actual structure 
+objects (see <a href="#demo">demonstration</a> below).
+
+<h2>Downloading</h2>
+
+You can download the following:
+<ul>
+<li>source code:
+<a href="ftp://www.sis.nl/python/xstruct/xstructmodule.c">xstructmodule.c</a>
+<li>pre-built Windows DLL:
+<a href="ftp://www.sis.nl/python/xstruct/xstruct.pyd">xstruct.pyd</a>
+<li>a transcript of the demonstration code below:
+<a href="ftp://www.sis.nl/python/xstruct/xsdp.py">xsdp.py</a>
+</ul>
+
+For questions and remarks, please drop me (Robin Boerdijk) an e-mail at
+<p>
+<a href="mailto:boerdijk@my-deja.com">boerdijk@my-deja.com</a>.
+
+<a name=demo></a><h2>A demonstration</h2>
+
+For demonstration purposes, let's say you want to implement a simple 
+client/server communication protocol with a binary message format 
+defined by the following C struct:
+<p>
+<pre>
+/* XDSP (XStruct Demonstration Protocol) message format */
+
+typedef unsigned char octet;
+
+typedef struct {
+  char magic[4];           /* must be "XSDP" */
+  octet version[2];        /* major version, minor version */
+  octet byte_order;        /* 0 = big endian, 1 = little endian */
+  octet message_type;      /* 0 = request, 1 = reply */
+  unsigned long correl_id; /* correlation id, links replies to requests */
+  octet data[16];          /* request or reply data */
+} XsdpMessage;
+</pre>
+<p>
+<h3>Defining the structure</h3>
+You can use the <tt>structdef</tt> function from the <tt>xstruct</tt> 
+module to define the XSDP message format in Python:
+<p>
+<pre>
+Python 1.5.2 (#0, Apr 13 1999, 10:51:12) [MSC 32 bit (Intel)] on win32
+Copyright 1991-1995 Stichting Mathematisch Centrum, Amsterdam
+
+>>> import xstruct
+
+>>> XsdpMessage = xstruct.structdef(xstruct.big_endian, [
+  ("magic",        (xstruct.string, 4),   "XSDP",   xstruct.readonly),
+  ("version",      (xstruct.octet,  2),   (1, 0)), 
+  ("byte_order",   (xstruct.octet,  1),    0,       xstruct.readonly), 
+  ("message_type", (xstruct.octet,  1)), 
+  ("correl_id",    (xstruct.unsigned_long, 1)),
+  ("data",         (xstruct.string, 16))
+]) 
+</pre>
+<p>
+The <tt>structdef</tt> function takes two parameters. The first parameter specifies the physical layout (i.e, byte order and alignment) of the structure in memory. The second parameter is a list of tuples that defines the fields of the structure. A single field tuple has the following format: 
+<p>
+<b>(</b> <I>field name</I><b>, (</b> <I>field type</I><b>, </b><I>repeat count </I><b>) , </b><I>initial value</I><b> , </b> <I>flags</I> <b>)</b>
+<p>
+where <I>initial value</I> and <I>flags</I> are optional.
+<p>
+The <tt>structdef</tt> function returns a <tt>structdef</tt> object:
+<p>
+<pre >
+>>> XsdpMessage
+&lt;structdef object at 79ad60>
+</pre>
+<p>
+The <tt>structdef</tt> object can be used to create actual structure 
+objects.
+
+<h3>Creating and manipulating structure objects</h3> 
+
+To create an actual XSDP message structure object, you call the 
+XSDP message structure definition object:
+<p>
+<pre>
+>>> msg = XsdpMessage()
+</pre>
+<p>
+To see fields and their values, evaluate or print the structure object:
+</p>
+<pre>
+>>> print msg
+magic: XSDP
+version: (1, 0)
+byte_order: 0
+message_type: 0
+correl_id: 0L
+data:
+</pre>
+<p>
+Individual fields can be accessed as attributes of the structure object:
+<pre>
+>>> msg.correl_id = 0x01020304
+>>> msg.correl_id
+16909060L
+</pre>
+<p>
+Alternatively, you can use the mapping interface of the structure object:
+<p>
+<pre>
+>>> msg['data'] = "Hello, World !"
+>>> msg['data']
+'Hello, World !\000\000'
+</pre>
+<p>
+If you try to change the value of a field that has been marked as
+readonly in the structure definition, an exception will be raised:
+<p>
+<pre>
+>>> msg.magic = "XXXX"
+Traceback (innermost last):
+  File "&lt;stdin>", line 1, in ?
+xstruct.error: field is not changeable
+</pre>
+
+<h3>Accessing the packed binary format</h3>
+
+The purpose of the <tt>xstruct</tt> module is to enable you to conveniently 
+create and manipulate packed binary data structures.
+Therefore, sooner or later, you probably want to get hold of the physical byte stream.
+One way to do this is to make a copy of the internal data buffer of the
+structure object using the Python <tt>str</tt> operator:
+<p>
+<pre>
+>>> buf = str(msg)
+>>> buf
+'XSDP\001\000\000\000\000\001\002\003\004Hello, World !\000\000'
+</pre>
+<p>
+A more efficient way to manipulate the internal data buffer is to use
+the new buffer interface of Python 1.5.2. For this to
+work, however, the client code has to use this buffer interface
+as well. The standard Python file object already
+does this, as you can see from:
+<p>
+<pre>
+>>> open("tmp", "w").write(msg)
+>>> open("tmp", "r").read()
+'XSDP\001\000\000\000\000\001\002\003\004Hello, World !\000\000'
+</pre>
+<p>
+Using this method, the packed binary data structure is written directly to 
+the file, without the need of making a string copy first.
+<p>
+From a packed binary format, you can also create a structure object:
+<pre>
+>>> msg2 = XsdpMessage(buf)
+>>> msg2
+magic: XSDP
+version: (1, 0)
+byte_order: 0
+message_type: 0
+correl_id: 16909060L
+data: Hello, World !
+</pre>
+<p>
+Or using the buffer interface:
+<pre>
+>>> msg3 = XsdpMessage()
+>>> open("tmp", "r").readinto(msg3)
+28
+>>> msg3
+magic: XSDP
+version: (1, 0)
+byte_order: 0
+message_type: 0
+correl_id: 16909060L
+data: Hello, World !
+</pre>
+
+</font>
+</body>
+</html>
+
