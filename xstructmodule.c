@@ -101,7 +101,7 @@ Whitespace between formats is ignored.\n\
 The variable struct.error is an exception raised on errors.";
 
 #include "Python.h"
-#include "mymath.h"
+//#include "mymath.h"
 
 #include <limits.h>
 #include <ctype.h>
